@@ -17,7 +17,9 @@ class SVM:
         m : int (num_classes)
         returns : numpy array of shape (n, m)
         """
-        pass
+        res = np.full((y.shape[0], m), -1)
+        res[np.arange(y.shape[0]), y] = 1
+        return res
 
     def compute_loss(self, x, y):
         """
@@ -41,9 +43,7 @@ class SVM:
         n = size
 
         for ndx in range(0, l, n):
-
             index2 = min(ndx + n, l)
-
             yield iterable1[ndx: index2], iterable2[ndx: index2]
 
     def infer(self, x):
@@ -65,7 +65,7 @@ class SVM:
         """
         x_train : numpy array of shape (number of training examples, num_features)
         y_train : numpy array of shape (number of training examples, num_classes)
-        x_test : numpy array of shape (number of training examples, nujm_features)
+        x_test : numpy array of shape (number of training examples, num_features)
         y_test : numpy array of shape (number of training examples, num_classes)
         returns : float, float, float, float
         """
@@ -149,9 +149,12 @@ def load_data():
 
 
 if __name__ == "__main__":
-
     x_train, y_train, x_test, y_test = load_data()
-
+    print(f'{x_train.shape = }')
+    print(f'{y_train.shape = }')
+    print(f'{x_test.shape = }')
+    print(f'{y_test.shape = }')
+    
     print("Fitting the model...")
     svm = SVM(eta=0.0001, C=2, niter=200, batch_size=100, verbose=False)
     train_losses, train_accs, test_losses, test_accs = svm.fit(x_train, y_train, x_test, y_test)
