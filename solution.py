@@ -27,7 +27,21 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : float
         """
-        pass
+        print(x.shape)
+        print(y.shape)
+        
+        total = 0
+        for xi, yi in zip(x, y):  # we can vectorize the inner loop
+            # calculate the funky L term
+            l_term = np.maximum(0, 2 - xi.dot(self.w) * yi)** 2
+            
+            # add the L2 regularization term
+            w_norm_sq = np.sum(self.w ** 2, axis=1)
+            l2_reg = self.C / 2 * np.sum(w_norm_sq)
+            
+            total += np.sum(l_term + l2_reg)
+        
+        return total / x.shape[0]
 
     def compute_gradient(self, x, y):
         """
@@ -157,13 +171,14 @@ if __name__ == "__main__":
     
     print("Fitting the model...")
     svm = SVM(eta=0.0001, C=2, niter=200, batch_size=100, verbose=False)
-    train_losses, train_accs, test_losses, test_accs = svm.fit(x_train, y_train, x_test, y_test)
+    # train_losses, train_accs, test_losses, test_accs = svm.fit(x_train, y_train, x_test, y_test)
 
     # # to infer after training, do the following:
     # y_inferred = svm.infer(x_test)
 
     ## to compute the gradient or loss before training, do the following:
-    # y_train_ova = svm.make_one_versus_all_labels(y_train, 3) # one-versus-all labels
-    # svm.w = np.zeros([x_train.shape[1], 3])
-    # grad = svm.compute_gradient(x_train, y_train_ova)
-    # loss = svm.compute_loss(x_train, y_train_ova)
+    y_train_ova = svm.make_one_versus_all_labels(y_train, 3) # one-versus-all labels
+    svm.w = np.zeros([x_train.shape[1], 3])
+    grad = svm.compute_gradient(x_train, y_train_ova)
+    loss = svm.compute_loss(x_train, y_train_ova)
+    print(f'{loss = }')
