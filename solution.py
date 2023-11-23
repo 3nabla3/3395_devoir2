@@ -27,20 +27,16 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : float
         """
-        print(x.shape)
-        print(y.shape)
-        
+        # calculate the L2 regularization term
+        w_norm_sq = np.sum(self.w ** 2, axis=1)
+        l2_reg = self.C / 2 * np.sum(w_norm_sq)
+
         total = 0
         for xi, yi in zip(x, y):  # we can vectorize the inner loop
             # calculate the funky L term
-            l_term = np.maximum(0, 2 - xi.dot(self.w) * yi)** 2
-            
-            # add the L2 regularization term
-            w_norm_sq = np.sum(self.w ** 2, axis=1)
-            l2_reg = self.C / 2 * np.sum(w_norm_sq)
-            
+            l_term = np.maximum(0, 2 - np.dot(self.w.T, xi) * yi) ** 2
             total += np.sum(l_term + l2_reg)
-        
+
         return total / x.shape[0]
 
     def compute_gradient(self, x, y):
@@ -133,21 +129,22 @@ def load_data():
     data_path = "Star_classification/"
     dataset = pd.read_csv(data_path + "star_classification.csv")
     y = dataset['class']
-    x = dataset.drop(['class','rerun_ID'], axis=1)
-    
-    #we replace the dataset class with a number (the class are : 'GALAXY' 'QSO' 'STAR')
+    x = dataset.drop(['class', 'rerun_ID'], axis=1)
+
+    # we replace the dataset class with a number (the class are : 'GALAXY' 'QSO' 'STAR')
     y = y.replace('GALAXY', 0)
     y = y.replace('QSO', 1)
     y = y.replace('STAR', 2)
 
-    #split dataset in train and test
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=40)
+    # split dataset in train and test
+    x_train, x_test, y_train, y_test = train_test_split(
+        x, y, test_size=0.4, random_state=40)
 
-    #convert sets to numpy arrays
+    # convert sets to numpy arrays
     x_train = np.array(x_train)
     x_test = np.array(x_test)
     y_train = np.array(y_train)
-    y_test=np.array(y_test)
+    y_test = np.array(y_test)
 
     # normalize the data
     mean = x_train.mean(axis=0)
@@ -168,7 +165,7 @@ if __name__ == "__main__":
     print(f'{y_train.shape = }')
     print(f'{x_test.shape = }')
     print(f'{y_test.shape = }')
-    
+
     print("Fitting the model...")
     svm = SVM(eta=0.0001, C=2, niter=200, batch_size=100, verbose=False)
     # train_losses, train_accs, test_losses, test_accs = svm.fit(x_train, y_train, x_test, y_test)
@@ -176,8 +173,9 @@ if __name__ == "__main__":
     # # to infer after training, do the following:
     # y_inferred = svm.infer(x_test)
 
-    ## to compute the gradient or loss before training, do the following:
-    y_train_ova = svm.make_one_versus_all_labels(y_train, 3) # one-versus-all labels
+    # to compute the gradient or loss before training, do the following:
+    y_train_ova = svm.make_one_versus_all_labels(
+        y_train, 3)  # one-versus-all labels
     svm.w = np.zeros([x_train.shape[1], 3])
     grad = svm.compute_gradient(x_train, y_train_ova)
     loss = svm.compute_loss(x_train, y_train_ova)
