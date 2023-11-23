@@ -30,14 +30,11 @@ class SVM:
         # calculate the L2 regularization term
         w_norm_sq = np.sum(self.w ** 2, axis=1)
         l2_reg = self.C / 2 * np.sum(w_norm_sq)
-
-        total = 0
-        for xi, yi in zip(x, y):  # we can vectorize the inner loop
-            # calculate the funky L term
-            l_term = np.maximum(0, 2 - np.dot(self.w.T, xi) * yi) ** 2
-            total += np.sum(l_term + l2_reg)
-
-        return total / x.shape[0]
+            
+        l_terms = np.maximum(0, 2 - np.matmul(x, self.w) * y) ** 2
+        hinge_loss = np.mean(l_terms)
+        
+        return hinge_loss + l2_reg
 
     def compute_gradient(self, x, y):
         """
