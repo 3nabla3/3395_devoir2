@@ -30,10 +30,11 @@ class SVM:
         # calculate the L2 regularization term
         w_norm_sq = np.sum(self.w ** 2, axis=1)
         l2_reg = self.C / 2 * np.sum(w_norm_sq)
-            
-        l_terms = np.maximum(0, 2 - np.matmul(x, self.w) * y) ** 2
-        hinge_loss = np.mean(l_terms)
-        
+
+        predictions = np.matmul(x, self.w)
+        l_terms = np.maximum(0, 2 - predictions * y) ** 2
+        hinge_loss = np.mean(np.sum(l_terms, axis=1))
+
         return hinge_loss + l2_reg
 
     def compute_gradient(self, x, y):
@@ -42,7 +43,13 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : numpy array of shape (num_features, num_classes)
         """
-        pass
+        # onsidérant un minibatch d’exemples,
+        # cette fonction devrait calculer le gradient de la fonction de perte
+        # par rapport au paramètre w. Les entrées de la fonction sont X
+        # (un tableau numpy de dimension (minibatch size, 17)) et y (un
+        # tableau numpy de dimension (minibatch size, 3)) et la sortie de-
+        # vrait être le gradient calculé, un tableau numpy de dimension
+        # (17, 3), soit la même dimension que celle du paramètre w
 
     # Batcher function
     def minibatch(self, iterable1, iterable2, size=1):
@@ -58,7 +65,9 @@ class SVM:
         x : numpy array of shape (num_examples_to_infer, num_features)
         returns : numpy array of shape (num_examples_to_infer, num_classes)
         """
-        pass
+        probs = x @ self.w
+        chosen = np.argmax(probs, axis=1)
+        return self.make_one_versus_all_labels(chosen, self.m)
 
     def compute_accuracy(self, y_inferred, y):
         """
@@ -66,7 +75,7 @@ class SVM:
         y : numpy array of shape (num_examples, num_classes)
         returns : float
         """
-        pass
+        return np.mean(np.all(y_inferred == y, axis=1))
 
     def fit(self, x_train, y_train, x_test, y_test):
         """
