@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from tqdm import trange
+from tqdm.contrib.concurrent import process_map
+
+import pylab as pl
 from sklearn.model_selection import train_test_split
 
 
@@ -42,44 +45,17 @@ class SVM:
         y : numpy array of shape (minibatch size, num_classes)
         returns : numpy array of shape (num_features, num_classes)
         """
-        # onsidérant un minibatch d’exemples,
-        # cette fonction devrait calculer le gradient de la fonction de perte
-        # par rapport au paramètre w. Les entrées de la fonction sont X
-        # (un tableau numpy de dimension (minibatch size, 17)) et y (un
-        # tableau numpy de dimension (minibatch size, 3)) et la sortie de-
-        # vrait être le gradient calculé, un tableau numpy de dimension
-        # (17, 3), soit la même dimension que celle du paramètre w
-
-        # ret = np.zeros_like(self.w)
-
-        # for j in range(self.w.shape[1]):
-        #     for k in range(self.w.shape[0]):
-        #         a = 4 * (x[:, k] @ y[:, j])
-        #         b = 2 * (x @ self.w[:, j]) * x[:, k]
-        #         c = b - a
-
-        #         condition = 2 - (x @ self.w[:, j]) * y[:, j] <= 0
-
-        #         ret[k, j] = np.sum(np.where(condition, 0, c))
-
-        # return ret
-
         ret = np.zeros_like(self.w)
 
-        x_dot_y = x.T @ y  # Precompute x transpose multiplied by y
-
         for j in range(self.w.shape[1]):
-            x_dot_w_j = x @ self.w[:, j]
-            b = 2 * x_dot_w_j * x.T
+            dot_prod = np.dot(x, self.w[:, j])
+            condition = 2 - dot_prod * y[:, j] <= 0
+            hinge_grad = np.where(
+                condition[:, np.newaxis], 0, (2 * dot_prod - 4 * y[:, j])[:, np.newaxis] * x)
+            total = np.sum(hinge_grad, axis=0)
 
-            a = 4 * x_dot_y[:, j]
-            c = b - a[:, np.newaxis]
-
-            condition = 2 - x_dot_w_j * y[:, j] <= 0
-            ret[:, j] = np.sum(
-                np.where(condition[:, np.newaxis], 0, c.T),
-                axis=0
-            )
+            l2_grad = self.C * self.w[:, j]
+            ret[:, j] = total / x.shape[0] + l2_grad
 
         return ret
 
@@ -110,7 +86,7 @@ class SVM:
         """
         return np.mean(np.all(y_inferred == y, axis=1))
 
-    def fit(self, x_train, y_train, x_test, y_test):
+    def fit(self, x_train, y_train, x_test, y_test, pos=0):
         """
         x_train : numpy array of shape (number of training examples, num_features)
         y_train : numpy array of shape (number of training examples, num_classes)
@@ -129,7 +105,7 @@ class SVM:
         test_losses = []
         test_accs = []
 
-        for iteration in trange(self.niter):
+        for iteration in trange(self.niter, position=pos):
             # Train one pass through the training set
             for x, y in self.minibatch(x_train, y_train, size=self.batch_size):
                 grad = self.compute_gradient(x, y)
@@ -206,26 +182,54 @@ if __name__ == "__main__":
     print(f'{y_test.shape = }')
 
     print("Fitting the model...")
-    svm = SVM(eta=0.0001, C=2, niter=200, batch_size=100, verbose=False)
-    train_losses, train_accs, test_losses, test_accs = svm.fit(
-        x_train, y_train, x_test, y_test
-    )
 
-    # # to infer after training, do the following:
-    y_inferred = svm.infer(x_test)
+    train_losses_list, train_accs_list, test_losses_list, test_accs_list = [], [], [], []
 
-    # to compute the gradient or loss before training, do the following:
-    y_train_ova = svm.make_one_versus_all_labels(
-        y_train, 3
-    )  # one-versus-all labels
-    y_test_ova = svm.make_one_versus_all_labels(
-        y_test, 3
-    )  # one-versus-all labels
+    def fit(arg):
+        pos, c = arg
+        svm = SVM(eta=0.0001, C=c, niter=200, batch_size=100, verbose=False)
+        return svm.fit(
+            x_train, y_train, x_test, y_test, pos=pos
+        )
 
-    accuracy = svm.compute_accuracy(y_inferred, y_test_ova)
-    print(f'{accuracy = }')
+    # calculate the metrics in parallel
+    train_losses_list, train_accs_list, test_losses_list, test_accs_list = \
+        zip(*process_map(fit, enumerate([1, 5, 10]), max_workers=3))
 
-    # svm.w = np.zeros([x_train.shape[1], 3])
-    # grad = svm.compute_gradient(x_train, y_train_ova)
-    # loss = svm.compute_loss(x_train, y_train_ova)
-    # print(f'{loss = }')
+    print("Plotting...")
+
+    pl.plot(train_losses_list[0], label='C = 1')
+    pl.plot(train_losses_list[1], label='C = 5')
+    pl.plot(train_losses_list[2], label='C = 10')
+    pl.xlabel("Iteration")
+    pl.ylabel("Train Loss")
+    pl.legend()
+    pl.savefig("images/train_loss.png")
+    pl.clf()
+
+    pl.plot(train_accs_list[0], label='C = 1')
+    pl.plot(train_accs_list[1], label='C = 5')
+    pl.plot(train_accs_list[2], label='C = 10')
+    pl.xlabel("Iteration")
+    pl.ylabel("Train Accuracy")
+    pl.legend()
+    pl.savefig("images/train_acc.png")
+    pl.clf()
+
+    pl.plot(test_losses_list[0], label='C = 1')
+    pl.plot(test_losses_list[1], label='C = 5')
+    pl.plot(test_losses_list[2], label='C = 10')
+    pl.xlabel("Iteration")
+    pl.ylabel("Test Loss")
+    pl.legend()
+    pl.savefig("images/test_loss.png")
+    pl.clf()
+
+    pl.plot(test_accs_list[0], label='C = 1')
+    pl.plot(test_accs_list[1], label='C = 5')
+    pl.plot(test_accs_list[2], label='C = 10')
+    pl.xlabel("Iteration")
+    pl.ylabel("Test Accuracy")
+    pl.legend()
+    pl.savefig("images/test_acc.png")
+    pl.clf()
