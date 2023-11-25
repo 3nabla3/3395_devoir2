@@ -51,13 +51,16 @@ class SVM:
             dot_prod = np.dot(x, self.w[:, j])
             condition = 2 - dot_prod * y[:, j] <= 0
             hinge_grad = np.where(
-                condition[:, np.newaxis], 0, (2 * dot_prod - 4 * y[:, j])[:, np.newaxis] * x)
-            total = np.sum(hinge_grad, axis=0)
+                condition[:, np.newaxis],
+                0,
+                (2 * dot_prod - 4 * y[:, j])[:, np.newaxis] * x
+            )
+            total = np.mean(hinge_grad, axis=0)
 
-            l2_grad = self.C * self.w[:, j]
-            ret[:, j] = total / x.shape[0] + l2_grad
+            ret[:, j] = total
 
-        return ret
+        l2_grad = self.C * self.w
+        return ret + l2_grad
 
     # Batcher function
 
@@ -183,8 +186,6 @@ if __name__ == "__main__":
 
     print("Fitting the model...")
 
-    train_losses_list, train_accs_list, test_losses_list, test_accs_list = [], [], [], []
-
     def fit(arg):
         pos, c = arg
         svm = SVM(eta=0.0001, C=c, niter=200, batch_size=100, verbose=False)
@@ -193,41 +194,38 @@ if __name__ == "__main__":
         )
 
     # calculate the metrics in parallel
+    c_values = [1, 5, 10, 0]
     train_losses_list, train_accs_list, test_losses_list, test_accs_list = \
-        zip(*process_map(fit, enumerate([1, 5, 10]), max_workers=3))
-
+        zip(*process_map(fit, enumerate(c_values)))
+#
     print("Plotting...")
 
-    pl.plot(train_losses_list[0], label='C = 1')
-    pl.plot(train_losses_list[1], label='C = 5')
-    pl.plot(train_losses_list[2], label='C = 10')
+    for train_losses, c in zip(train_losses_list, c_values):
+        pl.plot(train_losses, label=f'C = {c}')
     pl.xlabel("Iteration")
     pl.ylabel("Train Loss")
     pl.legend()
     pl.savefig("images/train_loss.png")
     pl.clf()
 
-    pl.plot(train_accs_list[0], label='C = 1')
-    pl.plot(train_accs_list[1], label='C = 5')
-    pl.plot(train_accs_list[2], label='C = 10')
+    for train_accs, c in zip(train_accs_list, c_values):
+        pl.plot(train_accs, label=f'C = {c}')
     pl.xlabel("Iteration")
     pl.ylabel("Train Accuracy")
     pl.legend()
     pl.savefig("images/train_acc.png")
     pl.clf()
 
-    pl.plot(test_losses_list[0], label='C = 1')
-    pl.plot(test_losses_list[1], label='C = 5')
-    pl.plot(test_losses_list[2], label='C = 10')
+    for test_losses, c in zip(test_losses_list, c_values):
+        pl.plot(test_losses, label=f'C = {c}')
     pl.xlabel("Iteration")
     pl.ylabel("Test Loss")
     pl.legend()
     pl.savefig("images/test_loss.png")
     pl.clf()
 
-    pl.plot(test_accs_list[0], label='C = 1')
-    pl.plot(test_accs_list[1], label='C = 5')
-    pl.plot(test_accs_list[2], label='C = 10')
+    for test_accs, c in zip(test_accs_list, c_values):
+        pl.plot(test_accs, label=f'C = {c}')
     pl.xlabel("Iteration")
     pl.ylabel("Test Accuracy")
     pl.legend()
